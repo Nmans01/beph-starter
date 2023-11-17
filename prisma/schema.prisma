@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String @id @default(uuid())
+  email     String @unique
+  firstName String
+  lastName  String
+
+  auth_sessions Session[]
+  keys          Key[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  user_id    String
+  created_at DateTime @default(now())
+  user       User     @relation(references: [id], fields: [user_id], onDelete: Cascade)
+}
+
+// Ephermal token
+model TOAuth2AccessToken {
+  id           String   @id @default(uuid())
+  uuid         String   @unique
+  name         String
+  token_type   String
+  expires_in   Int
+  access_token String
+  created_at   Int
+  scopes       Scopes[]
+}
+
+model Scopes {
+  id       String             @id @default(uuid())
+  token_id String
+  token    TOAuth2AccessToken @relation(references: [id], fields: [token_id], onDelete: Cascade)
+  name     String
+}
+
+model Key {
+  user_id          String?
+  user             User?   @relation(references: [id], fields: [user_id], onDelete: Cascade)
+  provider         String
+  id_from_provider String
+  hashed_password  String?
+
+  @@id([provider, id_from_provider])
+}
