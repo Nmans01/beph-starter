@@ -4,7 +4,6 @@ import Elysia, { NotFoundError } from "elysia";
 import { prismaService } from "./prismaService";
 
 const oauthHelper = new Elysia({ name: 'oauthHelper' })
-
     .use(prismaService)
 
     .state({
@@ -14,31 +13,21 @@ const oauthHelper = new Elysia({ name: 'oauthHelper' })
         stateStore: store.states,
     }))
     // TODO define this cookie at login page
-    .derive(({ cookie: { oauthSession }, set }) => ({
+    .derive(({ cookie: { oauthSession } }) => ({
         getCurrentUserId: () => {
             if (!oauthSession.value || !oauthSession.value.user_id) throw new Error("No oauth session found.");
-
             console.log("Found.");
             return oauthSession.value.user_id as string;
         }
     }))
-
-// {
-//     console.log("Checking for oauth session...");
-
-//     if (!oauthSession.value || !oauthSession.value.user_id) throw new Error("No oauth session found.");
-
-//     console.log("Found.");
-//     return { currentUserId: oauthSession.value.user_id as string };
-// });
 
 type HelperCtx = InferContext<typeof oauthHelper>;
 
 export const oauthService = new Elysia({ name: 'oauthService' })
     .use(oauthHelper)
     .use(oauth2({
-
-        redirectTo: '/register', // redirect to this page after successful login
+        // redirect to this page after successful login
+        redirectTo: '/register',
 
         // define multiple OAuth 2.0 profiles
         profiles: {
@@ -46,7 +35,7 @@ export const oauthService = new Elysia({ name: 'oauthService' })
         },
 
         // custom state verification between requests
-        // state is a random, unguessable, ephemeral string used to prevent CSRF attacks
+        // state is a random, unguessable, **ephemeral** string used to prevent CSRF attacks
         state: {
             generate: ({ stateStore }: HelperCtx, name) => {
                 const newState = randomBytes(8).toString('hex');
@@ -211,25 +200,23 @@ export const oauthService = new Elysia({ name: 'oauthService' })
             }
 
             // If a user was found/created, grant session token to user.
-            else {
-                const session = await prisma.session.create({
-                    data: { user_id: user.id }
-                });
+            const session = await prisma.session.create({
+                data: { user_id: user.id }
+            });
 
-                set.cookie = {
-                    session: {
-                        value: JSON.stringify(session),
-                        path: "/"
-                    }
-                };
-
-                console.log("Session granted:", session);
-                return {
-                    /**
-                     * If session is granted, redirect to user landing page.
-                     */
-                    redirectResponse: Response.redirect("/")
+            set.cookie = {
+                session: {
+                    value: JSON.stringify(session),
+                    path: "/"
                 }
+            };
+
+            console.log("Session granted:", session);
+            return {
+                /**
+                 * If session is granted, redirect to user landing page.
+                 */
+                redirectResponse: Response.redirect("/")
             }
         }
 
